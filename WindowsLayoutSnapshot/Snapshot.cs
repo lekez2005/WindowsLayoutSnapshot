@@ -9,6 +9,9 @@ using System.Windows.Forms;
 namespace WindowsLayoutSnapshot {
 
     internal class Snapshot {
+        const int SW_MAXIMIZE = 3;
+        const int SW_RESTORE = 5;
+        const int SW_SHOWMINNOACTIVE = 7;
 
         private Dictionary<IntPtr, WINDOWPLACEMENT> m_placements = new Dictionary<IntPtr, WINDOWPLACEMENT>();
         private List<IntPtr> m_windowsBackToTop = new List<IntPtr>();
@@ -89,6 +92,30 @@ namespace WindowsLayoutSnapshot {
                 placementValue.ptMaxPosition = GetUpperLeftCornerOfNearestMonitor(extendedStyles, placementValue.ptMaxPosition);
                 placementValue.ptMinPosition = GetUpperLeftCornerOfNearestMonitor(extendedStyles, placementValue.ptMinPosition);
                 placementValue.rcNormalPosition = GetRectInsideNearestMonitor(extendedStyles, placementValue.rcNormalPosition);
+
+                
+                if (placementValue.showCmd == SW_MAXIMIZE)
+                {
+                    // minimize first and then maximize. Otherwise, if window is now maximized on a different monitor
+                    // maximize wouldn't restore to the original monitor
+
+                    // string windowTitle = GetWindowTitle(hwnd);
+                    var currentPlacement = new WINDOWPLACEMENT();
+                    currentPlacement.length = Marshal.SizeOf(typeof(WINDOWPLACEMENT));
+                    IntPtr hwnd = placement.Key;
+                    if (!GetWindowPlacement(hwnd, ref currentPlacement)) // window may be gone
+                    {
+                        continue;
+                    }
+                    // check if window has moved
+                    if (! currentPlacement.rcNormalPosition.Equals(placementValue.rcNormalPosition))
+                    {
+                        placementValue.showCmd = SW_SHOWMINNOACTIVE;
+                        SetWindowPlacement(placement.Key, ref placementValue);
+                        placementValue.showCmd = SW_MAXIMIZE;
+                    }
+
+                }
 
                 SetWindowPlacement(placement.Key, ref placementValue);
             }
