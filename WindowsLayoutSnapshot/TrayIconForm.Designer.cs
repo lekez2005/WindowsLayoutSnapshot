@@ -47,31 +47,31 @@
             // trayMenu
             // 
             this.trayMenu.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.quitToolStripMenuItem,
             this.snapshotListEndLine,
             this.justNowToolStripMenuItem,
             this.snapshotListStartLine,
+            this.quitToolStripMenuItem,
             this.clearSnapshotsToolStripMenuItem,
             this.snapshotToolStripMenuItem});
             this.trayMenu.Name = "contextMenuStrip1";
-            this.trayMenu.Size = new System.Drawing.Size(159, 126);
+            this.trayMenu.Size = new System.Drawing.Size(181, 126);
             // 
             // quitToolStripMenuItem
             // 
             this.quitToolStripMenuItem.Name = "quitToolStripMenuItem";
-            this.quitToolStripMenuItem.Size = new System.Drawing.Size(158, 22);
+            this.quitToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
             this.quitToolStripMenuItem.Text = "Quit";
             this.quitToolStripMenuItem.Click += new System.EventHandler(this.quitToolStripMenuItem_Click);
             // 
             // snapshotListEndLine
             // 
             this.snapshotListEndLine.Name = "snapshotListEndLine";
-            this.snapshotListEndLine.Size = new System.Drawing.Size(155, 6);
+            this.snapshotListEndLine.Size = new System.Drawing.Size(177, 6);
             // 
             // justNowToolStripMenuItem
             // 
             this.justNowToolStripMenuItem.Name = "justNowToolStripMenuItem";
-            this.justNowToolStripMenuItem.Size = new System.Drawing.Size(158, 22);
+            this.justNowToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
             this.justNowToolStripMenuItem.Text = "(Just now)";
             this.justNowToolStripMenuItem.Click += new System.EventHandler(this.justNowToolStripMenuItem_Click);
             this.justNowToolStripMenuItem.MouseEnter += new System.EventHandler(this.justNowToolStripMenuItem_MouseEnter);
@@ -79,19 +79,19 @@
             // snapshotListStartLine
             // 
             this.snapshotListStartLine.Name = "snapshotListStartLine";
-            this.snapshotListStartLine.Size = new System.Drawing.Size(155, 6);
+            this.snapshotListStartLine.Size = new System.Drawing.Size(177, 6);
             // 
             // clearSnapshotsToolStripMenuItem
             // 
             this.clearSnapshotsToolStripMenuItem.Name = "clearSnapshotsToolStripMenuItem";
-            this.clearSnapshotsToolStripMenuItem.Size = new System.Drawing.Size(158, 22);
+            this.clearSnapshotsToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
             this.clearSnapshotsToolStripMenuItem.Text = "Clear Snapshots";
             this.clearSnapshotsToolStripMenuItem.Click += new System.EventHandler(this.clearSnapshotsToolStripMenuItem_Click);
             // 
             // snapshotToolStripMenuItem
             // 
             this.snapshotToolStripMenuItem.Name = "snapshotToolStripMenuItem";
-            this.snapshotToolStripMenuItem.Size = new System.Drawing.Size(158, 22);
+            this.snapshotToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
             this.snapshotToolStripMenuItem.Text = "Take Snapshot";
             this.snapshotToolStripMenuItem.Click += new System.EventHandler(this.snapshotToolStripMenuItem_Click);
             // 

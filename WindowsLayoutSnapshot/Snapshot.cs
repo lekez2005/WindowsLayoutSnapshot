@@ -9,6 +9,9 @@ using System.Windows.Forms;
 namespace WindowsLayoutSnapshot {
 
     internal class Snapshot {
+        const int SW_MAXIMIZE = 3;
+        const int SW_RESTORE = 5;
+        const int SW_SHOWMINNOACTIVE = 7;
 
         private Dictionary<IntPtr, WINDOWPLACEMENT> m_placements = new Dictionary<IntPtr, WINDOWPLACEMENT>();
         private List<IntPtr> m_windowsBackToTop = new List<IntPtr>();
@@ -46,8 +49,21 @@ namespace WindowsLayoutSnapshot {
             if (!GetWindowPlacement(hwnd, ref placement)) {
                 throw new Exception("Error getting window placement");
             }
-            m_placements.Add(hwnd, placement);
 
+            // window title // discard windows with no title
+            int length = GetWindowTextLength(hwnd);
+            StringBuilder builder = new StringBuilder(length);
+            if (length > 0)
+            {
+                GetWindowText(hwnd, builder, length + 1);
+                System.Diagnostics.Debug.WriteLine(builder.ToString());
+                // Console.Write(builder.ToString());
+            }else
+            {
+                return true;
+            }
+
+            m_placements.Add(hwnd, placement);
             return true;
         }
 
@@ -83,12 +99,35 @@ namespace WindowsLayoutSnapshot {
             foreach (var placement in m_placements) {
                 // this might error out if the window no longer exists
                 var placementValue = placement.Value;
-
                 // make sure points and rects will be inside monitor
                 IntPtr extendedStyles = GetWindowLongPtr(placement.Key, (-20)); // GWL_EXSTYLE
                 placementValue.ptMaxPosition = GetUpperLeftCornerOfNearestMonitor(extendedStyles, placementValue.ptMaxPosition);
                 placementValue.ptMinPosition = GetUpperLeftCornerOfNearestMonitor(extendedStyles, placementValue.ptMinPosition);
                 placementValue.rcNormalPosition = GetRectInsideNearestMonitor(extendedStyles, placementValue.rcNormalPosition);
+
+                
+                if (placementValue.showCmd == SW_MAXIMIZE)
+                {
+                    // minimize first and then maximize. Otherwise, if window is now maximized on a different monitor
+                    // maximize wouldn't restore to the original monitor
+
+                    // string windowTitle = GetWindowTitle(hwnd);
+                    var currentPlacement = new WINDOWPLACEMENT();
+                    currentPlacement.length = Marshal.SizeOf(typeof(WINDOWPLACEMENT));
+                    IntPtr hwnd = placement.Key;
+                    if (!GetWindowPlacement(hwnd, ref currentPlacement)) // window may be gone
+                    {
+                        continue;
+                    }
+                    // check if window has moved
+                    if (! currentPlacement.rcNormalPosition.Equals(placementValue.rcNormalPosition))
+                    {
+                        placementValue.showCmd = SW_SHOWMINNOACTIVE;
+                        SetWindowPlacement(placement.Key, ref placementValue);
+                        placementValue.showCmd = SW_MAXIMIZE;
+                    }
+
+                }
 
                 SetWindowPlacement(placement.Key, ref placementValue);
             }
@@ -96,7 +135,8 @@ namespace WindowsLayoutSnapshot {
             // now update the z-orders
             m_windowsBackToTop = m_windowsBackToTop.FindAll(IsWindowVisible);
             IntPtr positionStructure = BeginDeferWindowPos(m_windowsBackToTop.Count);
-            for (int i = 0; i < m_windowsBackToTop.Count; i++) {
+            for (int i = 0; i < m_windowsBackToTop.Count; i++)
+            {
                 positionStructure = DeferWindowPos(positionStructure, m_windowsBackToTop[i], i == 0 ? IntPtr.Zero : m_windowsBackToTop[i - 1],
                     0, 0, 0, 0, DeferWindowPosCommands.SWP_NOMOVE | DeferWindowPosCommands.SWP_NOSIZE | DeferWindowPosCommands.SWP_NOACTIVATE);
             }
@@ -136,14 +176,6 @@ namespace WindowsLayoutSnapshot {
                 return false;
             }
 
-            IntPtr extendedStyles = GetWindowLongPtr(hwnd, (-20)); // GWL_EXSTYLE
-            if ((extendedStyles.ToInt64() & 0x00040000) > 0) { // WS_EX_APPWINDOW
-                return true;
-            }
-            if ((extendedStyles.ToInt64() & 0x00000080) > 0) { // WS_EX_TOOLWINDOW
-                return false;
-            }
-
             IntPtr hwndTry = GetAncestor(hwnd, GetAncestor_Flags.GetRootOwner);
             IntPtr hwndWalk = IntPtr.Zero;
             while (hwndTry != hwndWalk) {
@@ -156,8 +188,43 @@ namespace WindowsLayoutSnapshot {
             if (hwndWalk != hwnd) {
                 return false;
             }
+            // titlebarinfo
+            var titleBarInfo = new TITLEBARINFO();
+            titleBarInfo.cbSize = (uint) Marshal.SizeOf(titleBarInfo);
+            if (!GetTitleBarInfo(hwnd, ref titleBarInfo))
+            {
+                throw new Exception("Error getting window title");
+            }
+            // the following removes some task tray programs and "Program Manager"
+            // https://stackoverflow.com/questions/7277366/why-does-enumwindows-return-more-windows-than-i-expected
+            if ((titleBarInfo.rgstate[0] & 0x00008000) > 0) { // STATE_SYSTEM_INVISIBLE 
+                return false;
+            }
+
+            IntPtr extendedStyles = GetWindowLongPtr(hwnd, (-20)); // GWL_EXSTYLE
+            if ((extendedStyles.ToInt64() & 0x00000080) > 0)
+            { // WS_EX_TOOLWINDOW
+                return false;
+            }
+            
+            if ((extendedStyles.ToInt64() & 0x00040000) > 0)
+            { // WS_EX_APPWINDOW
+                return true;
+            }
 
             return true;
+        }
+
+        private String GetWindowTitle(IntPtr hwnd)
+        {
+            // window title // discard windows with no title
+            int length = GetWindowTextLength(hwnd);
+            StringBuilder builder = new StringBuilder(length);
+            if (length > 0)
+            {
+                GetWindowText(hwnd, builder, length + 1);
+            }
+            return builder.ToString();
         }
 
         [DllImport("user32.dll")]
@@ -241,6 +308,17 @@ namespace WindowsLayoutSnapshot {
             public int Bottom;
         }
 
+        // http://www.pinvoke.net/default.aspx/Structures/TITLEBARINFO.html
+        [StructLayout(LayoutKind.Sequential)]
+        private struct TITLEBARINFO
+        {
+            public const int CCHILDREN_TITLEBAR = 5;
+            public uint cbSize;
+            public RECT rcTitleBar;
+            [MarshalAs(UnmanagedType.ByValArray, SizeConst = CCHILDREN_TITLEBAR + 1)]
+            public uint[] rgstate;
+        }
+
         [DllImport("user32.dll")]
         [return: MarshalAs(UnmanagedType.Bool)]
         private static extern bool SetForegroundWindow(IntPtr hWnd);
@@ -251,5 +329,15 @@ namespace WindowsLayoutSnapshot {
         [DllImport("user32.dll")]
         private static extern int EnumWindows(EnumWindowsProc ewp, int lParam);
         private delegate bool EnumWindowsProc(int hWnd, int lParam);
+
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        static extern bool GetTitleBarInfo(IntPtr hwnd, ref TITLEBARINFO pti);
+
+        [DllImport("USER32.DLL")]
+        private static extern int GetWindowText(IntPtr hWnd, StringBuilder lpString, int nMaxCount);
+
+        [DllImport("USER32.DLL")]
+        private static extern int GetWindowTextLength(IntPtr hWnd);
     }
 }
